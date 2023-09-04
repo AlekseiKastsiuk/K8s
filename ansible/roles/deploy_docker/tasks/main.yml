@@ -1,0 +1,99 @@
+---
+# tasks file for deploy_docker
+
+#creating user for rke----------
+- name: Add RKE admin user
+  user:
+    name: rke
+    shell: /bin/bash
+ 
+- name: Create sudo file
+  file:
+    path: /etc/sudoers.d/rke
+    state: touch
+
+- name: Give rke user passwordless sudo
+  lineinfile:
+    path: /etc/sudoers.d/rke
+    state: present
+    line: 'rke ALL=(ALL:ALL) NOPASSWD: ALL'
+ 
+- name: Set authorized key taken from file
+  authorized_key:
+    user: rke
+    state: present
+    key: "{{ lookup('file', 'rke.pub') }}"
+#------------------------------------
+  
+#install required modules -----------
+- name: Load kernel modules for RKE
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ kernel_modules }}"
+#settingup network atributes---------
+- name: Disable SWAP since kubernetes can't work with swap enabled (1/2)
+  shell: |
+    swapoff -a; sed -i '/swap/d' /etc/fstab
+
+- name: Disable firewall
+  shell: |
+    ufw disable
+ 
+- name: Disable SWAP in fstab since kubernetes can't work with swap enabled (2/2)
+  replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+.*)$'
+    replace: '# \1'
+    
+- name: Modify sysctl entries
+  shell: |
+    cat >>/etc/sysctl.d/kubernetes.conf<<EOF
+    net.bridge.bridge-nf-call-ip6tables = 1
+    net.bridge.bridge-nf-call-iptables = 1
+    EOF
+    sysctl --system
+    
+- name: openports
+  shell: |
+    for i in 22 80 443 179 5473 6443 8472 2376 8472 9099 10250 10251 10252 10254; do
+      iptables -A INPUT -p tcp --dport ${i} -j ACCEPT
+    done
+    
+    for i in 8285 8472 4789; do
+      iptables -A INPUT -p udp --dport ${i} -j ACCEPT
+    done
+ #-------------------------------------------------------------   
+
+
+- name: Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker repository
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
+    state: present
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install Docker v19.03.10
+  apt:
+    name: docker-ce=5:19.03.10~3-0~ubuntu-{{ ansible_lsb.codename }}
+    state: present
+
+- name: Start Docker service
+  service:
+    name: docker
+    state: started
+
+- name: Enable Docker service
+  service:
+    name: docker
+    enabled: yes
+    
+- name: Add user to docker group
+  command: usermod -aG docker rke

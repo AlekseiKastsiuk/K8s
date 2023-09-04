@@ -1,0 +1,14 @@
+---
+#connect to GCP, find all instanse and group by name 
+plugin: gcp_compute
+projects:
+  - projectname-397413
+auth_kind: serviceaccount
+service_account_file: projectname-397413-e56406224b55.json
+
+groups:
+  master: "'node-0' in name"
+  worker: "'node-1' in name or 'node-2' in name"
+
+compose:
+  ansible_host: "networkInterfaces[0].accessConfigs[0].natIP"

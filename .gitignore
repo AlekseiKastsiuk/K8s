@@ -1,0 +1,9 @@
+projectname-397413-e56406224b55.json
+mysshkey
+rke
+/keys
+kube_config_cluster.yml
+terraform.tfstate
+terraform.tfstate.backup
+/.terraform
+.terraform.lock.hcl

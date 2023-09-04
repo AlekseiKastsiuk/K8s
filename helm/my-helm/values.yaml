@@ -1,0 +1,6 @@
+#variable for app container
+container:
+  image: alekseikastsiuk/my-site:1.0
+  
+#count of replicas
+replicaCount: 3

@@ -1,0 +1,7 @@
+- name: Create rke user with passwordless sudo
+  hosts: all
+  become: yes
+  roles:
+    - deploy_docker
+
+        
